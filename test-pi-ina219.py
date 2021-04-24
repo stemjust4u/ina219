@@ -63,7 +63,7 @@ def read():
         Pwr = ina219A.power()
         Vshunt = ina219A.shunt_voltage()
     except DeviceRangeError as e:
-        print("Current overflow")
+        logging.info("Current overflow")
     return Vbus, Ibus, Pwr, Vshunt
 
 ina219A = INA219(SHUNT_OHMS, MAX_EXPECTED_AMPS, address=ADDRESS, log_level=logging.INFO)
@@ -79,12 +79,14 @@ ina219A.configure(ina219A.RANGE_16V)  # Will calculate the best gain to achieve 
 # MANUAL GAIN, HIGH RESOLUTION
 #ina219A.configure(ina219A.RANGE_16V, ina219A.GAIN_1_40MV) # Will miss current and power values if a current overflow occurs.
 
-print("pi-ina219 setup on {0}".format(ADDRESS))
+logging.info("pi-ina219 setup on {0}".format(ADDRESS))
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
+
     while True:
         t0 = perf_counter_ns()
         Vbus, Ibus, Pwr, Vshunt = read()
         tdelta = perf_counter_ns() - t0
-        print("Vbus:{0:1.2f}V Ibus:{1}mA  Pwr:{2:.2f}W Vshunt:{3:1.2} Time:{4}ms".format(Vbus, int(Ibus), Pwr/1000, Vshunt, tdelta/1000000))
+        logging.info("Vbus:{0:1.2f}V Ibus:{1}mA  Pwr:{2:.2f}W Vshunt:{3:1.2} Time:{4}ms".format(Vbus, int(Ibus), Pwr/1000, Vshunt, tdelta/1000000))
         time.sleep(1)

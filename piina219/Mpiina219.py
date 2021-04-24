@@ -5,8 +5,10 @@ Board 0: Address = 0x40 Offset = binary 00000 (no jumpers required)
 Board 1: Address = 0x41 Offset = binary 00001 (bridge A0)
 Board 2: Address = 0x44 Offset = binary 00100 (bridge A1)
 Board 3: Address = 0x45 Offset = binary 00101 (bridge A0 & A1)
+To check address
+$ sudo i2cdetect -y 1
 
-# Can be put in low power mode
+Can be put in low power mode
 ina.sleep()
 time.sleep(60)
 ina.wake()
@@ -50,13 +52,14 @@ ADC*128SAMP: 128 samples at 12 bit, conversion time 68.10ms.
 from ina219 import INA219
 from ina219 import DeviceRangeError
 import time, logging
-from time import perf_counter_ns
+from time import perf_counter, perf_counter_ns
 
-class piina219:
+class PiINA219:
 
-    def __init__(self, gainmode="auto", maxamps = 0.4, useraddress=0x40):
+    def __init__(self, gainmode="auto", maxamps = 0.4, useraddress=0x40): 
         self.SHUNT_OHMS = 0.1
         self.ina219 = INA219(self.SHUNT_OHMS, maxamps, address=useraddress, log_level=logging.INFO)
+        self.output = {}
         if gainmode == "auto":      # AUTO GAIN, HIGH RESOLUTION - Lower precision above max amps specified
             self.ina219.configure(self.ina219.RANGE_16V)
         elif gainmode == "manual":  # MANUAL GAIN, HIGH RESOLUTION - Max amps is 400mA
@@ -66,11 +69,14 @@ class piina219:
         Vbus =  self.ina219.voltage()
         try:
             Ibus = self.ina219.current()
-            Pwr = self.ina219.power()
-            Vshunt = self.ina219.shunt_voltage()
+            pwr = self.ina219.power()
+            #Vshunt = self.ina219.shunt_voltage()
         except DeviceRangeError as e:
-            print("Current overflow")
-        return Vbus, Ibus, Pwr, Vshunt
+            logging.info("Current overflow")
+        self.output['Vbusf'] = Vbus
+        self.output['IbusAf'] = Ibus/1000
+        self.output['PowerWf'] = pwr/1000
+        return self.output
 
     def sleep(self):
         self.ina219.sleep()
@@ -83,23 +89,22 @@ class piina219:
 
 
 if __name__ == "__main__":
-    ina219A = piina219("auto", 0.4, 0x40)
+
+    logging.basicConfig(level=logging.INFO) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
+    
+    ina219A = PiINA219("auto", 0.4, 0x40)
+    ina219B = PiINA219("auto", 0.4, 0x41)
     #while True:
-    t0 = perf_counter_ns()
-    Vbus, Ibus, Pwr, Vshunt = ina219A.read()
-    tdelta = perf_counter_ns() - t0
-    print("Vbus:{0:1.2f}V Ibus:{1}mA  Pwr:{2:.2f}W Vshunt:{3:1.2} Time:{4}ms".format(Vbus, int(Ibus), Pwr/1000, Vshunt, tdelta/1000000))
-    time.sleep(1)
+    for i in range(5):
+        t0 = perf_counter_ns()
+        reading = ina219B.read()
+        tdelta = perf_counter_ns() - t0
+        logging.info("Vbus:{0:1.2f}V Ibus:{1:1.4f}A  Pwr:{2:.2f}W Time:{3}ms".format(reading['Vbusf'], reading['IbusAf'], reading['PowerWf'], tdelta/1000000))
+        time.sleep(1)
     ina219A.sleep()
-    time.sleep(3)
-    ina219A.wake()
-    time.sleep(2)
-    t0 = perf_counter_ns()
-    Vbus, Ibus, Pwr, Vshunt = ina219A.read()
-    tdelta = perf_counter_ns() - t0
-    print("Vbus:{0:1.2f}V Ibus:{1}mA  Pwr:{2:.2f}W Vshunt:{3:1.2} Time:{4}ms".format(Vbus, int(Ibus), Pwr/1000, Vshunt, tdelta/1000000))
-    ina219A.reset()
-    t0 = perf_counter_ns()
-    Vbus, Ibus, Pwr, Vshunt = ina219A.read()
-    tdelta = perf_counter_ns() - t0
-    print("Vbus:{0:1.2f}V Ibus:{1}mA  Pwr:{2:.2f}W Vshunt:{3:1.2} Time:{4}ms".format(Vbus, int(Ibus), Pwr/1000, Vshunt, tdelta/1000000))
+    for i in range(5):
+        t0 = perf_counter_ns()
+        reading = ina219B.read()
+        tdelta = perf_counter_ns() - t0
+        logging.info("Vbus:{0:1.2f}V Ibus:{1:1.4f}A  Pwr:{2:.2f}W Time:{3}ms".format(reading['Vbusf'], reading['IbusAf'], reading['PowerWf'], tdelta/1000000))
+        time.sleep(1)
