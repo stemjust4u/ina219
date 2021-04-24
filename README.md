@@ -3,7 +3,7 @@
 # [STEM Just 4 U Home Page](https://stemjust4u.com/)
 ## This project collects voltage, current, and power from an ina219 power monitor
 
-If you don't have an ina219 the voltage can be collected using ina219 on esp32 (or ADS115/MCP3008 on RPi) but current is not as easy to get to. The ina219 makes the current/power collection easy. I did not see libraries for micropython so this project will only be with Raspberry Pi. I2C is used for communication to the RPi so only 2 cables are needed for that portion. You then connect to the high side, between the power source and load, so you can measure both current and voltage.
+If you don't have an ina219, (0-3.3V) voltage can be collected using ADC on esp32 (or external ADC boards ADS115/MCP3008 on RPi) but current or higher voltages are not as easy to get to. The ina219 makes higher voltage and current/power collection easy. I did not see libraries for micropython so this project will only be with Raspberry Pi. I2C is used for communication to the RPi, requiring only 2 cables for that portion. Another advantage to the ina219 is that you can connect to the high side, between the power source and load, so you can measure both current and voltage.
 
 [Link to Project Web Site](https://github.com/stemjust4u/ina219)
 
@@ -34,7 +34,6 @@ The pi-ina219 has wake/sleep modes but it only uses 0.9mA to begin with. In slee
 ​In $ sudo raspi-config make sure I2C is enabled in the interface.
 Can confirm in `$ sudo nano /boot/config.txt`  
 dtparam=i2c=on  
-dtparam=spi=on  
 
 Pinout shows details on which pins are available for each connection
 
@@ -45,14 +44,14 @@ SDA to I2C data line
 SCL to I2C clock  
 
 ### MQTT Explorer  
-MQTT Explorer is a great tool for watching messages between your clients and broker. You can also manually enter a topic and send a msg to test your code. This is useful for first setting up your code and trouble shooting.
+[MQTT Explorer](http://mqtt-explorer.com/) is a great tool for watching messages between your clients and broker. You can also manually enter a topic and send a msg to test your code. This is useful for initial setup/debugging before implementing a final mqtt setup in node-red.
 
 # Code
 MQTT is used to communicate readings to a node-red server.
 
 RPi
 /demomqtt.py (can use the dict to use multiple boards)  
-|-/piina219 
+|-/piina219   
 |    |-Mpiina219.py (ina219 module) 
 
 Code Sections
@@ -63,8 +62,8 @@ INFO (status prints)
 CRITICAL (prints turned off)
 3. Hardware Setup (create objects for external hardware)
 4. MQTT setup (get server info align topics to match node-red)
-SUBSCRIBE TOPIC (regex is used to match the topic)
-PUBLISH TOPIC (dictionary key is used to join Topic)
+    * SUBSCRIBE TOPIC (regex is used to match the topic)
+    * PUBLISH TOPIC (dictionary key is used to join Topic)
 5. Start/bind MQTT functions
 6. Enter main loop
     * Get readings
