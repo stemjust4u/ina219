@@ -159,10 +159,10 @@ if __name__ == "__main__":
     try:
         while True:
             if (perf_counter() - t0_sec) > msginterval: # Get data on a time interval
-                for board, ina219 in ina219Set.items():
+                for device, ina219 in ina219Set.items():
                     reading = ina219.read()
                     # will convert dict-to-json for easy MQTT publish of all pins at once
-                    MQTT_PUB_TOPIC1 = board.join(MQTT_PUB_TOPIC)
+                    MQTT_PUB_TOPIC1 = device.join(MQTT_PUB_TOPIC)
                     mqtt_client.publish(MQTT_PUB_TOPIC1, json.dumps(reading))  # publish voltage values
                 t0_sec = perf_counter()
     except KeyboardInterrupt:
