@@ -6,34 +6,92 @@ from pathlib import Path
 from logging.handlers import RotatingFileHandler
 import piina219
 
-if __name__ == "__main__":
+def setup_logging(log_dir):
+    # Create loggers
+    main_logger = logging.getLogger(__name__)
+    main_logger.setLevel(logging.INFO)
+    log_file_format = logging.Formatter("[%(levelname)s] - %(asctime)s - %(name)s - : %(message)s in %(pathname)s:%(lineno)d")
+    log_console_format = logging.Formatter("[%(levelname)s]: %(message)s")
 
-    #==== LOGGING/DEBUGGING SETUP ============#
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(log_console_format)
 
-    def setup_logging(log_dir):
-        # Create loggers
-        main_logger = logging.getLogger(__name__)
-        main_logger.setLevel(logging.INFO)
-        log_file_format = logging.Formatter("[%(levelname)s] - %(asctime)s - %(name)s - : %(message)s in %(pathname)s:%(lineno)d")
-        log_console_format = logging.Formatter("[%(levelname)s]: %(message)s")
+    exp_file_handler = RotatingFileHandler('{}/exp_debug.log'.format(log_dir), maxBytes=10**6, backupCount=5) # 1MB file
+    exp_file_handler.setLevel(logging.INFO)
+    exp_file_handler.setFormatter(log_file_format)
 
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        console_handler.setFormatter(log_console_format)
+    exp_errors_file_handler = RotatingFileHandler('{}/exp_error.log'.format(log_dir), maxBytes=10**6, backupCount=5)
+    exp_errors_file_handler.setLevel(logging.WARNING)
+    exp_errors_file_handler.setFormatter(log_file_format)
 
-        exp_file_handler = RotatingFileHandler('{}/exp_debug.log'.format(log_dir), maxBytes=10**6, backupCount=5) # 1MB file
-        exp_file_handler.setLevel(logging.INFO)
-        exp_file_handler.setFormatter(log_file_format)
+    main_logger.addHandler(console_handler)
+    main_logger.addHandler(exp_file_handler)
+    main_logger.addHandler(exp_errors_file_handler)
+    return main_logger
 
-        exp_errors_file_handler = RotatingFileHandler('{}/exp_error.log'.format(log_dir), maxBytes=10**6, backupCount=5)
-        exp_errors_file_handler.setLevel(logging.WARNING)
-        exp_errors_file_handler.setFormatter(log_file_format)
+def on_connect(client, userdata, flags, rc):
+    """ on connect callback verifies a connection established and subscribe to TOPICs"""
+    global MQTT_SUB_TOPIC
+    logging.info("attempting on_connect")
+    if rc==0:
+        mqtt_client.connected = True
+        for topic in MQTT_SUB_TOPIC:
+            client.subscribe(topic)
+            logging.info("Subscribed to: {0}\n".format(topic))
+        logging.info("Successful Connection: {0}".format(str(rc)))
+    else:
+        mqtt_client.failed_connection = True  # If rc != 0 then failed to connect. Set flag to stop mqtt loop
+        logging.info("Unsuccessful Connection - Code {0}".format(str(rc)))
 
-        main_logger.addHandler(console_handler)
-        main_logger.addHandler(exp_file_handler)
-        main_logger.addHandler(exp_errors_file_handler)
-        return main_logger
-    
+def on_message(client, userdata, msg):
+    """on message callback will receive messages from the server/broker. Must be subscribed to the topic in on_connect"""
+    logging.debug("Received: {0} with payload: {1}".format(msg.topic, str(msg.payload)))
+
+def on_publish(client, userdata, mid):
+    """on publish will send data to client"""
+    #Debugging. Will unpack the dictionary and then the converted JSON payload
+    #logging.debug("msg ID: " + str(mid)) 
+    #logging.debug("Publish: Unpack outgoing dictionary (Will convert dictionary->JSON)")
+    #for key, value in outgoingD.items():
+    #    logging.debug("{0}:{1}".format(key, value))
+    #logging.debug("Converted msg published on topic: {0} with JSON payload: {1}\n".format(MQTT_PUB_TOPIC1, json.dumps(outgoingD))) # Uncomment for debugging. Will print the JSON incoming msg
+    pass 
+
+def on_disconnect(client, userdata,rc=0):
+    logging.debug("DisConnected result code "+str(rc))
+    mqtt_client.loop_stop()
+
+def mqtt_setup(IPaddress):
+    global MQTT_SERVER, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, MQTT_SUB_TOPIC, MQTT_PUB_TOPIC, SUBLVL1, MQTT_REGEX
+    global mqtt_client, mqtt_outgoingD, device
+    home = str(Path.home())                       # Import mqtt and wifi info. Remove if hard coding in python script
+    with open(path.join(home, "stem"),"r") as f:
+        user_info = f.read().splitlines()
+    MQTT_SERVER = IPaddress                    # Replace with IP address of device running mqtt server/broker
+    MQTT_USER = user_info[0]                   # Replace with your mqtt user ID
+    MQTT_PASSWORD = user_info[1]               # Replace with your mqtt password
+    MQTT_SUB_TOPIC = []
+    SUBLVL1 = 'nred2' + MQTT_CLIENT_ID
+    # lvl2: Specific MQTT_PUB_TOPICS created at time of publishing done using string.join (specifically item.join)
+    MQTT_PUB_TOPIC = ['pi2nred/', '/' + MQTT_CLIENT_ID]
+    mqtt_outgoingD = {}            # Container for data to be published via mqtt
+    device = []                    # mqtt lvl2 topic category and '.appended' in create functions
+
+def create_ina219(item, mode="auto", maxA=0.4, address=0x40):
+    global device, mqtt_outgoingD, SUBLVL1
+    MQTT_SUB_TOPIC.append(SUBLVL1 + '/' + item + 'ZCMD/+')
+    device.append(item)
+    mqtt_outgoingD[item] = {}
+    mqtt_outgoingD[item]['data'] = {}
+    mqtt_outgoingD[item]['send'] = False   # Used to flag when to send results
+    return piina219.PiINA219(mode, maxA, address)
+
+def main():
+    global device, mqtt_outgoingD      # Containers setup in 'create' functions and used for Publishing mqtt
+    global MQTT_SERVER, MQTT_USER, MQTT_PASSWORD, MQTT_CLIENT_ID, mqtt_client, MQTT_PUB_TOPIC
+
+    #===== LOGING SETUP ====#
     # Can comment/uncomment to switch between the two methods of logging
     #basicConfig root logger
     logging.basicConfig(level=logging.INFO)                      # Can comment/uncomment to switch
@@ -41,62 +99,9 @@ if __name__ == "__main__":
 
     # getLogger (includes file logging)
     #logging = setup_logging(path.dirname(path.abspath(__file__)))  # Can comment/uncomment to switch
-    #logging.info("Setup with getLogger console/file logging module") 
-    
-    def on_connect(client, userdata, flags, rc):
-        """ on connect callback verifies a connection established and subscribe to TOPICs"""
-        global MQTT_SUB_TOPIC
-        logging.info("attempting on_connect")
-        if rc==0:
-            mqtt_client.connected = True
-            for topic in MQTT_SUB_TOPIC:
-                client.subscribe(topic)
-                logging.info("Subscribed to: {0}\n".format(topic))
-            logging.info("Successful Connection: {0}".format(str(rc)))
-        else:
-            mqtt_client.failed_connection = True  # If rc != 0 then failed to connect. Set flag to stop mqtt loop
-            logging.info("Unsuccessful Connection - Code {0}".format(str(rc)))
+    #logging.info("Setup with getLogger console/file logging module")
 
-    def on_message(client, userdata, msg):
-        """on message callback will receive messages from the server/broker. Must be subscribed to the topic in on_connect"""
-        global incomingID, mqtt_dummy1, mqtt_dummy2
-        logging.debug("Received: {0} with payload: {1}".format(msg.topic, str(msg.payload)))
-        msgmatch = re.match(MQTT_REGEX, msg.topic)   # Check for match to subscribed topics
-        if msgmatch:
-            incomingD = json.loads(str(msg.payload.decode("utf-8", "ignore"))) 
-            incomingID = [msgmatch.group(0), msgmatch.group(1), msgmatch.group(2), type(incomingD)] # breaks msg topic into groups - group/group1/group2
-            if incomingID[2] == 'group2A':
-                mqtt_dummy1 = incomingD
-            elif incomingID[2] == 'group2B':
-                mqtt_dummy2 = incomingD
-        # Debugging. Will print the JSON incoming payload and unpack it
-        #logging.debug("Topic grp0:{0} grp1:{1} grp2:{2}".format(msgmatch.group(0), msgmatch.group(1), msgmatch.group(2)))
-        #incomingD = json.loads(str(msg.payload.decode("utf-8", "ignore")))
-        #logging.debug("Payload type:{0}".format(type(incomingD)))
-        #if isinstance(incomingD, (str, bool, int, float)):
-        #    logging.debug(incomingD)
-        #elif isinstance(incomingD, list):
-        #    for item in incomingD:
-        #        logging.debug(item)
-        #elif isinstance(incomingD, dict):
-        #    for key, value in incomingD.items():  
-        #        logging.debug("{0}:{1}".format(key, value))
-
-    def on_publish(client, userdata, mid):
-        """on publish will send data to client"""
-        #Debugging. Will unpack the dictionary and then the converted JSON payload
-        #logging.debug("msg ID: " + str(mid)) 
-        #logging.debug("Publish: Unpack outgoing dictionary (Will convert dictionary->JSON)")
-        #for key, value in outgoingD.items():
-        #    logging.debug("{0}:{1}".format(key, value))
-        #logging.debug("Converted msg published on topic: {0} with JSON payload: {1}\n".format(MQTT_PUB_TOPIC1, json.dumps(outgoingD))) # Uncomment for debugging. Will print the JSON incoming msg
-        pass 
-
-    def on_disconnect(client, userdata,rc=0):
-        logging.debug("DisConnected result code "+str(rc))
-        mqtt_client.loop_stop()
-
-    #==== HARDWARE SETUP ===============#
+    #==== HARDWARE/MQTT SETUP ===============#
     # AUTO GAIN, HIGH RESOLUTION - Lower precision above max amps specified
     # MANUAL GAIN, HIGH RESOLUTION - Max amps is 400mA
     # Pass gain (auto or manual), max current (400mA for high resolution), and address
@@ -106,28 +111,14 @@ if __name__ == "__main__":
     #Board 3: Address = 0x45 Offset = binary 00101 (bridge A0 & A1)
     #Returns a dictionary with Vbusf, IbusAi, PowerWf
     #Readings take 4-6ms
-    ina219Set = {}
-    ina219Set['ina219A'] = piina219.PiINA219("auto", 0.4, 0x40)
-    ina219Set['ina219B'] = piina219.PiINA219("auto", 0.4, 0x41)
 
-    #=======   MQTT SETUP ==============#    
-    home = str(Path.home())                       # Import mqtt and wifi info. Remove if hard coding in python script
-    with open(path.join(home, "stem"),"r") as f:
-        user_info = f.read().splitlines()
-
-    MQTT_SERVER = '10.0.0.115'                    # Replace with IP address of device running mqtt server/broker
-    MQTT_USER = user_info[0]                      # Replace with your mqtt user ID
-    MQTT_PASSWORD = user_info[1]                  # Replace with your mqtt password   
+    MQTT_CLIENT_ID = 'pi' # Can make ID unique if multiple Pi's could be running similar devices (ie servos, ADC's) 
+                          # Node red will need to be linked to unique MQTT_CLIENT_ID
+    mqtt_setup('10.0.0.115')
     
-    MQTT_SUB_TOPIC = []          # + is wildcard for that level. Can .append more topics
-    MQTT_SUB_TOPIC.append('nred2pi/ina219ZCMD/+')
-    MQTT_REGEX = r'nred2pi/([^/]+)/([^/]+)'
-
-    #MQTT_CLIENT_ID = 'RPi4Argon1'
-    MQTT_CLIENT_ID = 'RPi4Uncomp'
-    #MQTT_CLIENT_ID = 'RPi0'
-
-    MQTT_PUB_TOPIC = ['pi2nred/', '/' + MQTT_CLIENT_ID] # Final topic is joined at time of publishing based on which ADC is sending data
+    ina219Set = {}
+    ina219Set['ina219A'] = create_ina219("ina219A", "auto", 0.4, 0x40)
+    ina219Set['ina219B'] = create_ina219("ina219B", "auto", 0.4, 0x41)
 
     #==== START/BIND MQTT FUNCTIONS ====#
     # Create a couple flags to handle a failed attempt at connecting. If user/password is wrong we want to stop the loop.
@@ -160,12 +151,13 @@ if __name__ == "__main__":
         while True:
             if (perf_counter() - t0_sec) > msginterval: # Get data on a time interval
                 for device, ina219 in ina219Set.items():
-                    reading = ina219.read()
-                    # will convert dict-to-json for easy MQTT publish of all pins at once
-                    MQTT_PUB_TOPIC1 = device.join(MQTT_PUB_TOPIC)
-                    mqtt_client.publish(MQTT_PUB_TOPIC1, json.dumps(reading))  # publish voltage values
+                    mqtt_outgoingD[device]['data'] = ina219.read()
+                    mqtt_client.publish(device.join(MQTT_PUB_TOPIC), json.dumps(mqtt_outgoingD[device]['data']))  # publish voltage values
                 t0_sec = perf_counter()
     except KeyboardInterrupt:
         logging.info("Pressed ctrl-C")
     finally:
         logging.info("Exiting")
+
+if __name__ == "__main__":
+    main()
