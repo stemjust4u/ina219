@@ -30,7 +30,7 @@ Board 3: Address = 0x45 Offset = binary 00101 (bridge A0 & A1)
 
 Use `$ sudo i2cdetect -y 1` to check the address.
 
-The pi-ina219 has wake/sleep modes but it only uses 0.9mA to begin with. In sleep mode it dropped to 0.2mA.
+The pi-ina219 has wake/sleep modes but mine measured <1mA to begin with. Sleep mode dropped it to near 0.
 
 # Pin Connection
 ​In $ sudo raspi-config make sure I2C is enabled in the interface.
