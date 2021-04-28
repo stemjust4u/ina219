@@ -11,13 +11,15 @@ If you don't have an ina219, (0-3.3V) voltage can be collected using ADC on esp3
 * Raspberry Pi
 * ina219 board  
 ​
-![ina219](images/ina219-front.png#5rad)
-![ina219](images/ina219-back.png#5rad) 
+![ina219](images/ina219-fritzing.png#200sq-5rad)
+![ina219](images/ina219-front.png#200sq-5rad)
 
 # Specs
 The ina219 has 12-bit ADC.  
 It can measure up to 3.2A with ~ 0.8mA resolution.  
 DC voltage goes up to 26V.  
+Max current 3.2A
+Vcc/logic 3-5V
 
 There are 4 measurement pins on the boards I bought. But you can add more boards by bridging the A0/A1 pad.  
 
