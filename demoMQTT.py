@@ -6,19 +6,29 @@ from pathlib import Path
 from logging.handlers import RotatingFileHandler
 import piina219
 
-def setup_logging(log_dir):
+def setup_logging(log_dir, log_level=logging.INFO, mode=1):
     # Create loggers
+    # INFO + mode 1  = info           print only
+    # INFO + mode 2  = info           print+logfile output
+    # DEBUG + mode 1 = info and debug print only
+    # DEBUG + mode 2 = info and debug print+logfile output
+
+    if mode == 1:
+        logfile_log_level = logging.CRITICAL
+    elif mode == 2:
+        logfile_log_level = logging.DEBUG
+
     main_logger = logging.getLogger(__name__)
-    main_logger.setLevel(logging.INFO)
+    main_logger.setLevel(log_level)
     log_file_format = logging.Formatter("[%(levelname)s] - %(asctime)s - %(name)s - : %(message)s in %(pathname)s:%(lineno)d")
     log_console_format = logging.Formatter("[%(levelname)s]: %(message)s")
 
     console_handler = logging.StreamHandler()
-    console_handler.setLevel(logging.INFO)
+    console_handler.setLevel(logging.CRITICAL)
     console_handler.setFormatter(log_console_format)
 
     exp_file_handler = RotatingFileHandler('{}/exp_debug.log'.format(log_dir), maxBytes=10**6, backupCount=5) # 1MB file
-    exp_file_handler.setLevel(logging.INFO)
+    exp_file_handler.setLevel(logfile_log_level)
     exp_file_handler.setFormatter(log_file_format)
 
     exp_errors_file_handler = RotatingFileHandler('{}/exp_error.log'.format(log_dir), maxBytes=10**6, backupCount=5)
@@ -80,26 +90,30 @@ def mqtt_setup(IPaddress):
 
 def create_ina219(item, mode="auto", maxA=0.4, address=0x40):
     global device, mqtt_outgoingD, SUBLVL1
-    MQTT_SUB_TOPIC.append(SUBLVL1 + '/' + item + 'ZCMD/+')
-    device.append(item)
-    mqtt_outgoingD[item] = {}
-    mqtt_outgoingD[item]['data'] = {}
-    mqtt_outgoingD[item]['send'] = False   # Used to flag when to send results
-    return piina219.PiINA219(mode, maxA, address)
+    global main_logger, main_log_level
+    if item == 'REPEAT':
+        print('Next device using first topic in this group')
+        pass
+    else:
+        MQTT_SUB_TOPIC.append(SUBLVL1 + '/' + item + 'ZCMD/+')
+        device.append(item)
+        mqtt_outgoingD[item] = {}
+        mqtt_outgoingD[item]['data'] = {}
+        mqtt_outgoingD[item]['send'] = False   # Used to flag when to send results
+        print('{0} address:{1} Subscribing to: {2}'.format(item, address, SUBLVL1 + '/' + item + 'ZCMD/+'))
+        mqtt_payload_keys = ['Vbusf', 'IbusAf', 'PowerWf']
+        print('Data JSON payload keys will be:{0}'.format(mqtt_payload_keys))
+    return piina219.PiINA219(*mqtt_payload_keys, mode, maxA, address, logger=main_logger, log_level=main_log_level)
 
 def main():
     global device, mqtt_outgoingD      # Containers setup in 'create' functions and used for Publishing mqtt
     global MQTT_SERVER, MQTT_USER, MQTT_PASSWORD, MQTT_CLIENT_ID, mqtt_client, MQTT_PUB_TOPIC
+    global main_logger, main_log_level
 
-    #===== LOGING SETUP ====#
-    # Can comment/uncomment to switch between the two methods of logging
-    #basicConfig root logger
-    logging.basicConfig(level=logging.INFO)                      # Can comment/uncomment to switch
-    logging.info("Setup with basicConfig root logger")
-
-    # getLogger (includes file logging)
-    #logging = setup_logging(path.dirname(path.abspath(__file__)))  # Can comment/uncomment to switch
-    #logging.info("Setup with getLogger console/file logging module")
+    main_log_level= logging.DEBUG
+    #logging.basicConfig(level=main_log_level) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
+    main_logger = setup_logging(path.dirname(path.abspath(__file__)), main_log_level, 1)
+    logging.info(main_logger)
 
     #==== HARDWARE/MQTT SETUP ===============#
     # AUTO GAIN, HIGH RESOLUTION - Lower precision above max amps specified

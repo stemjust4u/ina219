@@ -56,27 +56,41 @@ from time import perf_counter, perf_counter_ns
 
 class PiINA219:
 
-    def __init__(self, gainmode="auto", maxamps = 0.4, useraddress=0x40): 
+    def __init__(self, voltkey='Vbusf', currentkey='IbusAf', powerkey='PowerWf', gainmode="auto", maxamps = 0.4, useraddress=0x40, logger=None, log_level=logging.INFO): 
         self.SHUNT_OHMS = 0.1
-        self.ina219 = INA219(self.SHUNT_OHMS, maxamps, address=useraddress, log_level=logging.INFO)
-        self.output = {}
+        self.voltkey = voltkey
+        self.currentkey = currentkey
+        self.powerkey = powerkey
+        self.address = useraddress
+        if logger is not None:     # Custom logger has priority
+            self.logger = logger
+        elif len(logging.getLogger().handlers) == 0: # Root logger does not exist and no custom logger passed
+            logging.basicConfig(level=log_level)  # Create Root logger
+            self.logger = logging.getLogger(__name__)
+            self.logger.setLevel(log_level)
+        else:
+            self.logger = logging.getLogger(__name__)
+            self.logger.setLevel(log_level)
+            
+        self.ina219 = INA219(self.SHUNT_OHMS, maxamps, address=self.address)  # can pass log_level=log_level
+        self.outgoing = {}
         if gainmode == "auto":      # AUTO GAIN, HIGH RESOLUTION - Lower precision above max amps specified
             self.ina219.configure(self.ina219.RANGE_16V)
         elif gainmode == "manual":  # MANUAL GAIN, HIGH RESOLUTION - Max amps is 400mA
             self.ina219.configure(self.ina219.RANGE_16V, self.ina219.GAIN_1_40MV)
+        self.logger.info('ina219 setup with gain mode:{0} max Amps:{1}'.format(gainmode, maxamps))
+        self.logger.info(self.ina219)
 
     def read(self):
-        Vbus =  self.ina219.voltage()
+        self.outgoing[self.voltkey] =  self.ina219.voltage()
         try:
-            Ibus = self.ina219.current()
-            pwr = self.ina219.power()
+            self.outgoing[self.currentkey] = float("{:.3f}".format(self.ina219.current()/1000))
+            self.outgoing[self.powerkey] = float("{:.2f}".format(self.ina219.power()/1000))
             #Vshunt = self.ina219.shunt_voltage()
         except DeviceRangeError as e:
-            logging.info("Current overflow")
-        self.output['Vbusf'] = Vbus
-        self.output['IbusAf'] = Ibus/1000
-        self.output['PowerWf'] = pwr/1000
-        return self.output
+            self.logger.info("Current overflow")
+        self.logger.debug('{0}, {1}, {2}'.format(self.address, self.outgoing.keys(), self.outgoing.values()))
+        return self.outgoing
 
     def sleep(self):
         self.ina219.sleep()
@@ -87,24 +101,61 @@ class PiINA219:
     def reset(self):
         self.ina219.reset()
 
-
 if __name__ == "__main__":
+    from logging.handlers import RotatingFileHandler
+    from os import path
 
-    logging.basicConfig(level=logging.INFO) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
+    def setup_logging(log_dir, log_level=logging.INFO, mode=1):
+        # Create loggers
+        # INFO + mode 1  = info           print only
+        # INFO + mode 2  = info           print+logfile output
+        # DEBUG + mode 1 = info and debug print only
+        # DEBUG + mode 2 = info and debug print+logfile output
+
+        if mode == 1:
+            logfile_log_level = logging.CRITICAL
+        elif mode == 2:
+            logfile_log_level = logging.DEBUG
+
+        main_logger = logging.getLogger(__name__)
+        main_logger.setLevel(log_level)
+        log_file_format = logging.Formatter("[%(levelname)s] - %(asctime)s - %(name)s - : %(message)s in %(pathname)s:%(lineno)d")
+        log_console_format = logging.Formatter("[%(levelname)s]: %(message)s")
+ 
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.CRITICAL)
+        console_handler.setFormatter(log_console_format)
+
+        exp_file_handler = RotatingFileHandler('{}/exp_debug.log'.format(log_dir), maxBytes=10**6, backupCount=5) # 1MB file
+        exp_file_handler.setLevel(logfile_log_level)
+        exp_file_handler.setFormatter(log_file_format)
+
+        exp_errors_file_handler = RotatingFileHandler('{}/exp_error.log'.format(log_dir), maxBytes=10**6, backupCount=5)
+        exp_errors_file_handler.setLevel(logging.WARNING)
+        exp_errors_file_handler.setFormatter(log_file_format)
+
+        main_logger.addHandler(console_handler)
+        main_logger.addHandler(exp_file_handler)
+        main_logger.addHandler(exp_errors_file_handler)
+        return main_logger
     
-    ina219A = PiINA219("auto", 0.4, 0x40)
-    ina219B = PiINA219("auto", 0.4, 0x41)
+    main_log_level= logging.DEBUG
+    #logging.basicConfig(level=main_log_level) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
+    main_logger = setup_logging(path.dirname(path.abspath(__file__)), main_log_level, 2)
+    payload_keys = ['Vbusf', 'IbusAf', 'PowerWf']
+    ina219A = PiINA219(*payload_keys, "auto", 0.4, 0x40, logger=main_logger, log_level=main_log_level)
+    ina219B = PiINA219(*payload_keys, "auto", 0.4, 0x41, logger=main_logger, log_level=main_log_level)
     #while True:
     for i in range(5):
         t0 = perf_counter_ns()
-        reading = ina219B.read()
+        reading = ina219A.read()
         tdelta = perf_counter_ns() - t0
-        logging.info("Vbus:{0:1.2f}V Ibus:{1:1.4f}A  Pwr:{2:.2f}W Time:{3}ms".format(reading['Vbusf'], reading['IbusAf'], reading['PowerWf'], tdelta/1000000))
+        #logging.info('{0} {1}'.format(reading.keys(), reading.values()))
         time.sleep(1)
     ina219A.sleep()
     for i in range(5):
         t0 = perf_counter_ns()
-        reading = ina219B.read()
+        reading = ina219A.read()
         tdelta = perf_counter_ns() - t0
-        logging.info("Vbus:{0:1.2f}V Ibus:{1:1.4f}A  Pwr:{2:.2f}W Time:{3}ms".format(reading['Vbusf'], reading['IbusAf'], reading['PowerWf'], tdelta/1000000))
+        #logging.info('{0} {1}'.format(reading.keys(), reading.values()))
         time.sleep(1)
