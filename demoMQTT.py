@@ -43,33 +43,33 @@ def setup_logging(log_dir, log_level=logging.INFO, mode=1):
 def on_connect(client, userdata, flags, rc):
     """ on connect callback verifies a connection established and subscribe to TOPICs"""
     global MQTT_SUB_TOPIC
-    logging.info("attempting on_connect")
+    logger.info("attempting on_connect")
     if rc==0:
         mqtt_client.connected = True
         for topic in MQTT_SUB_TOPIC:
             client.subscribe(topic)
-            logging.info("Subscribed to: {0}\n".format(topic))
-        logging.info("Successful Connection: {0}".format(str(rc)))
+            logger.info("Subscribed to: {0}\n".format(topic))
+        logger.info("Successful Connection: {0}".format(str(rc)))
     else:
         mqtt_client.failed_connection = True  # If rc != 0 then failed to connect. Set flag to stop mqtt loop
-        logging.info("Unsuccessful Connection - Code {0}".format(str(rc)))
+        logger.info("Unsuccessful Connection - Code {0}".format(str(rc)))
 
 def on_message(client, userdata, msg):
     """on message callback will receive messages from the server/broker. Must be subscribed to the topic in on_connect"""
-    logging.debug("Received: {0} with payload: {1}".format(msg.topic, str(msg.payload)))
+    logger.debug("Received: {0} with payload: {1}".format(msg.topic, str(msg.payload)))
 
 def on_publish(client, userdata, mid):
     """on publish will send data to client"""
     #Debugging. Will unpack the dictionary and then the converted JSON payload
-    #logging.debug("msg ID: " + str(mid)) 
-    #logging.debug("Publish: Unpack outgoing dictionary (Will convert dictionary->JSON)")
+    #logger.debug("msg ID: " + str(mid)) 
+    #logger.debug("Publish: Unpack outgoing dictionary (Will convert dictionary->JSON)")
     #for key, value in outgoingD.items():
-    #    logging.debug("{0}:{1}".format(key, value))
-    #logging.debug("Converted msg published on topic: {0} with JSON payload: {1}\n".format(MQTT_PUB_TOPIC1, json.dumps(outgoingD))) # Uncomment for debugging. Will print the JSON incoming msg
+    #    logger.debug("{0}:{1}".format(key, value))
+    #logger.debug("Converted msg published on topic: {0} with JSON payload: {1}\n".format(MQTT_PUB_TOPIC1, json.dumps(outgoingD))) # Uncomment for debugging. Will print the JSON incoming msg
     pass 
 
 def on_disconnect(client, userdata,rc=0):
-    logging.debug("DisConnected result code "+str(rc))
+    logger.debug("DisConnected result code "+str(rc))
     mqtt_client.loop_stop()
 
 def mqtt_setup(IPaddress):
@@ -90,7 +90,7 @@ def mqtt_setup(IPaddress):
 
 def create_ina219(item, mode="auto", maxA=0.4, address=0x40):
     global device, mqtt_outgoingD, SUBLVL1
-    global main_logger, main_log_level
+    global logger, logger_log_level
     if item == 'REPEAT':
         print('Next device using first topic in this group')
         pass
@@ -103,17 +103,35 @@ def create_ina219(item, mode="auto", maxA=0.4, address=0x40):
         print('{0} address:{1} Subscribing to: {2}'.format(item, address, SUBLVL1 + '/' + item + 'ZCMD/+'))
         mqtt_payload_keys = ['Vbusf', 'IbusAf', 'PowerWf']
         print('Data JSON payload keys will be:{0}'.format(mqtt_payload_keys))
-    return piina219.PiINA219(*mqtt_payload_keys, mode, maxA, address, logger=main_logger, log_level=main_log_level)
+    return piina219.PiINA219(*mqtt_payload_keys, mode, maxA, address, mlogger=logger, mlog_level=logger_log_level)
 
 def main():
     global device, mqtt_outgoingD      # Containers setup in 'create' functions and used for Publishing mqtt
     global MQTT_SERVER, MQTT_USER, MQTT_PASSWORD, MQTT_CLIENT_ID, mqtt_client, MQTT_PUB_TOPIC
-    global main_logger, main_log_level
+    global logger, logger_log_level
 
-    main_log_level= logging.DEBUG
-    #logging.basicConfig(level=main_log_level) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
-    main_logger = setup_logging(path.dirname(path.abspath(__file__)), main_log_level, 1)
-    logging.info(main_logger)
+    # Set next 3 variables for different logging options
+    logger_log_level= logging.INFO # CRITICAL=logging off. DEBUG=get variables. INFO=status messages.
+    logger_setup = 1  # 0 for basicConfig, 1 for custom logger with RotatingFileHandler (RFH)
+    RFHmode = 1 # If logger_setup ==1 (RotatingFileHandler) then access to modes below
+                #Arguments
+                #log_level, RFHmode|  logger.x() | output
+                #------------------|-------------|-----------
+                #      INFO, 1     |  info       | print only
+                #      INFO, 2     |  info       | print+logfile
+                #      DEBUG,1     |  info+debug | print only
+                #      DEBUG,2     |  info+debug | print+logfile
+    if logger_setup == 0:
+        if len(logging.getLogger().handlers) == 0: # Root logger does not already exist, will create it
+            logging.basicConfig(level=logger_log_level)  # Create Root logger
+            logger = logging.getLogger(__name__)         # Set logger to root logger
+            logger.setLevel(logger_log_level)
+        else:
+            logger = logging.getLogger(__name__)        # Root logger already exists so just linking logger to it
+            logger.setLevel(logger_log_level)
+    elif logger_setup == 1:                             # Using custom logger with RotatingFileHandler
+        logger = setup_logging(path.dirname(path.abspath(__file__)), logger_log_level, RFHmode ) # dir for creating logfile
+    logger.info(logger)
 
     #==== HARDWARE/MQTT SETUP ===============#
     # AUTO GAIN, HIGH RESOLUTION - Lower precision above max amps specified
@@ -131,8 +149,11 @@ def main():
     mqtt_setup('10.0.0.115')
     
     ina219Set = {}
-    ina219Set['ina219A'] = create_ina219("ina219A", "auto", 0.4, 0x40)
-    ina219Set['ina219B'] = create_ina219("ina219B", "auto", 0.4, 0x41)
+    lvl2 = "ina219A"
+    ina219Set['ina219A'] = create_ina219(lvl2, "auto", 0.4, 0x40)
+    lvl2 = "ina219B"
+    ina219Set['ina219B'] = create_ina219(lvl2, "auto", 0.4, 0x41)
+    logger.info("n")
 
     #==== START/BIND MQTT FUNCTIONS ====#
     # Create a couple flags to handle a failed attempt at connecting. If user/password is wrong we want to stop the loop.
@@ -145,12 +166,12 @@ def main():
     mqtt_client.on_disconnect = on_disconnect # Bind on disconnect
     mqtt_client.on_message = on_message       # Bind on message
     mqtt_client.on_publish = on_publish       # Bind on publish
-    logging.info("Connecting to: {0}".format(MQTT_SERVER))
+    logger.info("Connecting to: {0}".format(MQTT_SERVER))
     mqtt_client.connect(MQTT_SERVER, 1883)    # Connect to mqtt broker. This is a blocking function. Script will stop while connecting.
     mqtt_client.loop_start()                  # Start monitoring loop as asynchronous. Starts a new thread and will process incoming/outgoing messages.
     # Monitor if we're in process of connecting or if the connection failed
     while not mqtt_client.connected and not mqtt_client.failed_connection:
-        logging.info("Waiting")
+        logger.info("Waiting")
         sleep(1)
     if mqtt_client.failed_connection:         # If connection failed then stop the loop and main program. Use the rc code to trouble shoot
         mqtt_client.loop_stop()
@@ -169,9 +190,9 @@ def main():
                     mqtt_client.publish(device.join(MQTT_PUB_TOPIC), json.dumps(mqtt_outgoingD[device]['data']))  # publish voltage values
                 t0_sec = perf_counter()
     except KeyboardInterrupt:
-        logging.info("Pressed ctrl-C")
+        logger.info("Pressed ctrl-C")
     finally:
-        logging.info("Exiting")
+        logger.info("Exiting")
 
 if __name__ == "__main__":
     main()

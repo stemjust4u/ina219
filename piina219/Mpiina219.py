@@ -56,21 +56,21 @@ from time import perf_counter, perf_counter_ns
 
 class PiINA219:
 
-    def __init__(self, voltkey='Vbusf', currentkey='IbusAf', powerkey='PowerWf', gainmode="auto", maxamps = 0.4, useraddress=0x40, logger=None, log_level=logging.INFO): 
+    def __init__(self, voltkey='Vbusf', currentkey='IbusAf', powerkey='PowerWf', gainmode="auto", maxamps = 0.4, useraddress=0x40, mlogger=None, mlog_level=logging.INFO): 
         self.SHUNT_OHMS = 0.1
         self.voltkey = voltkey
         self.currentkey = currentkey
         self.powerkey = powerkey
         self.address = useraddress
-        if logger is not None:     # Custom logger has priority
-            self.logger = logger
+        if mlogger is not None:     # Custom logger has priority
+            self.logger = mlogger
         elif len(logging.getLogger().handlers) == 0: # Root logger does not exist and no custom logger passed
-            logging.basicConfig(level=log_level)  # Create Root logger
+            logging.basicConfig(level=mlog_level)  # Create Root logger
             self.logger = logging.getLogger(__name__)
-            self.logger.setLevel(log_level)
+            self.logger.setLevel(mlog_level)
         else:
             self.logger = logging.getLogger(__name__)
-            self.logger.setLevel(log_level)
+            self.logger.setLevel(mlog_level)
             
         self.ina219 = INA219(self.SHUNT_OHMS, maxamps, address=self.address)  # can pass log_level=log_level
         self.outgoing = {}
@@ -143,8 +143,8 @@ if __name__ == "__main__":
     #logging.basicConfig(level=main_log_level) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
     main_logger = setup_logging(path.dirname(path.abspath(__file__)), main_log_level, 2)
     payload_keys = ['Vbusf', 'IbusAf', 'PowerWf']
-    ina219A = PiINA219(*payload_keys, "auto", 0.4, 0x40, logger=main_logger, log_level=main_log_level)
-    ina219B = PiINA219(*payload_keys, "auto", 0.4, 0x41, logger=main_logger, log_level=main_log_level)
+    ina219A = PiINA219(*payload_keys, "auto", 0.4, 0x40, mlogger=main_logger, mlog_level=main_log_level)
+    ina219B = PiINA219(*payload_keys, "auto", 0.4, 0x41, mlogger=main_logger, mlog_level=main_log_level)
     #while True:
     for i in range(5):
         t0 = perf_counter_ns()
