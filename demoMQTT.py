@@ -74,18 +74,18 @@ def on_disconnect(client, userdata,rc=0):
 
 def mqtt_setup(IPaddress):
     global MQTT_SERVER, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, MQTT_SUB_TOPIC, MQTT_PUB_TOPIC, SUBLVL1, MQTT_REGEX
-    global mqtt_client, mqtt_outgoingD, deviceD
+    global mqtt_client
     home = str(Path.home())                       # Import mqtt and wifi info. Remove if hard coding in python script
     with open(path.join(home, "stem"),"r") as f:
         user_info = f.read().splitlines()
     MQTT_SERVER = IPaddress                    # Replace with IP address of device running mqtt server/broker
     MQTT_USER = user_info[0]                   # Replace with your mqtt user ID
     MQTT_PASSWORD = user_info[1]               # Replace with your mqtt password
+    # SUBSCRIBE: Specific MQTT_SUB_TOPICS created inside 'setup_device' function
     MQTT_SUB_TOPIC = []
     SUBLVL1 = 'nred2' + MQTT_CLIENT_ID
-    # lvl2: Specific MQTT_PUB_TOPICS created at time of publishing done using string.join (specifically item.join)
+    # PUBLISH: Specific MQTT_PUB_TOPICS created at time of publishing using string.join
     MQTT_PUB_TOPIC = ['pi2nred/', '/' + MQTT_CLIENT_ID]
-    mqtt_outgoingD = {}            # Container for data to be published via mqtt
 
 def setup_device(device, lvl2, data_keys):
     global deviceD, SUBLVL1
@@ -111,7 +111,7 @@ def setup_device(device, lvl2, data_keys):
         sys.exit(f'Device {device} already in use. Device name should be unique')
 
 def main():
-    global deviceD, mqtt_outgoingD      # Containers setup in 'create' functions and used for Publishing mqtt
+    global deviceD      # Containers setup in 'create' functions and used for Publishing mqtt
     global MQTT_SERVER, MQTT_USER, MQTT_PASSWORD, MQTT_CLIENT_ID, mqtt_client, MQTT_PUB_TOPIC
     global logger, logger_log_level
 
