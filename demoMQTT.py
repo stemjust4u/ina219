@@ -27,11 +27,11 @@ def setup_logging(log_dir, log_level=logging.INFO, mode=1):
     console_handler.setLevel(logging.CRITICAL)
     console_handler.setFormatter(log_console_format)
 
-    exp_file_handler = RotatingFileHandler('{}/exp_debug.log'.format(log_dir), maxBytes=10**6, backupCount=5) # 1MB file
+    exp_file_handler = RotatingFileHandler('{}/debug.log'.format(log_dir), maxBytes=10**6, backupCount=5) # 1MB files
     exp_file_handler.setLevel(logfile_log_level)
     exp_file_handler.setFormatter(log_file_format)
 
-    exp_errors_file_handler = RotatingFileHandler('{}/exp_error.log'.format(log_dir), maxBytes=10**6, backupCount=5)
+    exp_errors_file_handler = RotatingFileHandler('{}/error.log'.format(log_dir), maxBytes=10**6, backupCount=5) # 1MB files
     exp_errors_file_handler.setLevel(logging.WARNING)
     exp_errors_file_handler.setFormatter(log_file_format)
 
@@ -116,9 +116,9 @@ def main():
     global logger, logger_log_level
 
     # Set next 3 variables for different logging options
-    logger_log_level= logging.INFO # CRITICAL=logging off. DEBUG=get variables. INFO=status messages.
+    logger_log_level= logging.DEBUG # CRITICAL=logging off. DEBUG=get variables. INFO=status messages.
     logger_setup = 1  # 0 for basicConfig, 1 for custom logger with RotatingFileHandler (RFH)
-    RFHmode = 1 # If logger_setup ==1 (RotatingFileHandler) then access to modes below
+    RFHmode = 2 # If logger_setup ==1 (RotatingFileHandler) then access to modes below
                 #Arguments
                 #log_level, RFHmode|  logger.x() | output
                 #------------------|-------------|-----------
@@ -127,9 +127,9 @@ def main():
                 #      DEBUG,1     |  info+debug | print only
                 #      DEBUG,2     |  info+debug | print+logfile
     if logger_setup == 0:
-        if len(logging.getLogger().handlers) == 0: # Root logger does not already exist, will create it
-            logging.basicConfig(level=logger_log_level)  # Create Root logger
-            logger = logging.getLogger(__name__)         # Set logger to root logger
+        if len(logging.getLogger().handlers) == 0:      # Root logger does not already exist, will create it
+            logging.basicConfig(level=logger_log_level) # Create Root logger
+            logger = logging.getLogger(__name__)        # Set logger to root logging
             logger.setLevel(logger_log_level)
         else:
             logger = logging.getLogger(__name__)        # Root logger already exists so just linking logger to it
