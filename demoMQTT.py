@@ -74,7 +74,7 @@ def on_disconnect(client, userdata,rc=0):
 
 def mqtt_setup(IPaddress):
     global MQTT_SERVER, MQTT_CLIENT_ID, MQTT_USER, MQTT_PASSWORD, MQTT_SUB_TOPIC, MQTT_PUB_TOPIC, SUBLVL1, MQTT_REGEX
-    global mqtt_client, mqtt_outgoingD, device
+    global mqtt_client, mqtt_outgoingD, deviceD
     home = str(Path.home())                       # Import mqtt and wifi info. Remove if hard coding in python script
     with open(path.join(home, "stem"),"r") as f:
         user_info = f.read().splitlines()
@@ -86,27 +86,32 @@ def mqtt_setup(IPaddress):
     # lvl2: Specific MQTT_PUB_TOPICS created at time of publishing done using string.join (specifically item.join)
     MQTT_PUB_TOPIC = ['pi2nred/', '/' + MQTT_CLIENT_ID]
     mqtt_outgoingD = {}            # Container for data to be published via mqtt
-    device = []                    # mqtt lvl2 topic category and '.appended' in create functions
 
-def create_ina219(item, mode="auto", maxA=0.4, address=0x40):
-    global device, mqtt_outgoingD, SUBLVL1
-    global logger, logger_log_level
-    if item == 'REPEAT':
-        print('Next device using first topic in this group')
-        pass
+def setup_device(device, lvl2, data_keys):
+    global deviceD, SUBLVL1
+    if deviceD.get(device) == None:
+        deviceD[device] = {}
+        deviceD[device]['data'] = {}
+        deviceD[device]['lvl2'] = lvl2 # Sub/Pub lvl2 in topics. Does not have to be unique, can piggy-back on another device lvl2
+        topic = f"{SUBLVL1}/{deviceD[device]['lvl2']}ZCMD/+"
+        if topic not in MQTT_SUB_TOPIC:
+            MQTT_SUB_TOPIC.append(topic)
+            for key in data_keys:
+                deviceD[device]['data'][key] = 0
+        else:
+            for key in data_keys:
+                for item in deviceD:
+                    if deviceD[item]['data'].get(key) != None:
+                        print(f'**DUPLICATE WARNING {device} and {item} are both publishing {key} on {topic}')
+                deviceD[device]['data'][key] = 0
+        deviceD[device]['send'] = False
+        print('\n{0} Subscribing to: {1}'.format(device, topic))
+        print('   JSON payload keys will be:{0}'.format([*deviceD[device]['data']]))
     else:
-        MQTT_SUB_TOPIC.append(SUBLVL1 + '/' + item + 'ZCMD/+')
-        device.append(item)
-        mqtt_outgoingD[item] = {}
-        mqtt_outgoingD[item]['data'] = {}
-        mqtt_outgoingD[item]['send'] = False   # Used to flag when to send results
-        print('{0} address:{1} Subscribing to: {2}'.format(item, address, SUBLVL1 + '/' + item + 'ZCMD/+'))
-        mqtt_payload_keys = ['Vbusf', 'IbusAf', 'PowerWf']
-        print('Data JSON payload keys will be:{0}'.format(mqtt_payload_keys))
-    return piina219.PiINA219(*mqtt_payload_keys, mode, maxA, address, mlogger=logger, mlog_level=logger_log_level)
+        sys.exit(f'Device {device} already in use. Device name should be unique')
 
 def main():
-    global device, mqtt_outgoingD      # Containers setup in 'create' functions and used for Publishing mqtt
+    global deviceD, mqtt_outgoingD      # Containers setup in 'create' functions and used for Publishing mqtt
     global MQTT_SERVER, MQTT_USER, MQTT_PASSWORD, MQTT_CLIENT_ID, mqtt_client, MQTT_PUB_TOPIC
     global logger, logger_log_level
 
@@ -148,12 +153,25 @@ def main():
                           # Node red will need to be linked to unique MQTT_CLIENT_ID
     mqtt_setup('10.0.0.115')
     
+    deviceD = {}  # Primary container for storing all devices, topics, and data
+                  # Device name should be unique, can not duplicate device ID
+                  # Topic lvl2 name can be a duplicate, meaning multipple devices publishing data on the same topic
+                  # If topic lvl2 name repeats would likely want the data_keys to be unique
+    
     ina219Set = {}
+
+    device = "ina219A"  
     lvl2 = "ina219A"
-    ina219Set['ina219A'] = create_ina219(lvl2, "auto", 0.4, 0x40)
+    data_keys = ['Vbusf', 'IbusAf', 'PowerWf']
+    setup_device(device, lvl2, data_keys)
+    ina219Set[device] = piina219.PiINA219(*data_keys, gainmode="auto", maxA=0.4, address=0x40, mlogger=logger, mlog_level=logger_log_level)
+
+    device = "ina219B"
     lvl2 = "ina219B"
-    ina219Set['ina219B'] = create_ina219(lvl2, "auto", 0.4, 0x41)
-    logger.info("n")
+    data_keys = ['Vbusf', 'IbusAf', 'PowerWf']
+    setup_device(device, lvl2, data_keys)
+    ina219Set[device] = piina219.PiINA219(*data_keys, gainmode="auto", maxA=0.4, address=0x41, mlogger=logger, mlog_level=logger_log_level)
+    logger.info("\n")
 
     #==== START/BIND MQTT FUNCTIONS ====#
     # Create a couple flags to handle a failed attempt at connecting. If user/password is wrong we want to stop the loop.
@@ -186,8 +204,9 @@ def main():
         while True:
             if (perf_counter() - t0_sec) > msginterval: # Get data on a time interval
                 for device, ina219 in ina219Set.items():
-                    mqtt_outgoingD[device]['data'] = ina219.read()
-                    mqtt_client.publish(device.join(MQTT_PUB_TOPIC), json.dumps(mqtt_outgoingD[device]['data']))  # publish voltage values
+        ## mqtt_outgoingD key may match device or may piggy back on another.  Just need a look up table 
+                    deviceD[device]['data'] = ina219.read()
+                    mqtt_client.publish(deviceD[device]['lvl2'].join(MQTT_PUB_TOPIC), json.dumps(deviceD[device]['data']))  # publish voltage values
                 t0_sec = perf_counter()
     except KeyboardInterrupt:
         logger.info("Pressed ctrl-C")

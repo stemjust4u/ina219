@@ -56,12 +56,12 @@ from time import perf_counter, perf_counter_ns
 
 class PiINA219:
 
-    def __init__(self, voltkey='Vbusf', currentkey='IbusAf', powerkey='PowerWf', gainmode="auto", maxamps = 0.4, useraddress=0x40, mlogger=None, mlog_level=logging.INFO): 
+    def __init__(self, voltkey='Vbusf', currentkey='IbusAf', powerkey='PowerWf', gainmode="auto", maxA = 0.4, address=0x40, mlogger=None, mlog_level=logging.INFO): 
         self.SHUNT_OHMS = 0.1
         self.voltkey = voltkey
         self.currentkey = currentkey
         self.powerkey = powerkey
-        self.address = useraddress
+        self.address = address
         if mlogger is not None:     # Custom logger has priority
             self.logger = mlogger
         elif len(logging.getLogger().handlers) == 0: # Root logger does not exist and no custom logger passed
@@ -72,13 +72,13 @@ class PiINA219:
             self.logger = logging.getLogger(__name__)
             self.logger.setLevel(mlog_level)
             
-        self.ina219 = INA219(self.SHUNT_OHMS, maxamps, address=self.address)  # can pass log_level=log_level
+        self.ina219 = INA219(self.SHUNT_OHMS, maxA, address=self.address)  # can pass log_level=log_level
         self.outgoing = {}
         if gainmode == "auto":      # AUTO GAIN, HIGH RESOLUTION - Lower precision above max amps specified
             self.ina219.configure(self.ina219.RANGE_16V)
         elif gainmode == "manual":  # MANUAL GAIN, HIGH RESOLUTION - Max amps is 400mA
             self.ina219.configure(self.ina219.RANGE_16V, self.ina219.GAIN_1_40MV)
-        self.logger.info('ina219 setup with gain mode:{0} max Amps:{1}'.format(gainmode, maxamps))
+        self.logger.info('ina219 at {0} setup with gain mode:{1} max Amps:{2}'.format(address, gainmode, maxA))
         self.logger.info(self.ina219)
 
     def read(self):
