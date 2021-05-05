@@ -127,11 +127,7 @@ def on_message(client, userdata, msg):
 
 def on_publish(client, userdata, mid):
     """on publish will send data to client"""
-    #Debugging. Will unpack the dictionary and then the converted JSON payload
-    mqtt_logger.debug("msg ID: " + str(mid)) 
-    #for key, value in outgoingD.items():
-    #    mqtt_logger.debug("{0}:{1}".format(key, value))
-    #mqtt_logger.debug("Converted msg published on topic: {0} with JSON payload: {1}\n".format(MQTT_PUB_LVL1, json.dumps(outgoingD))) # Uncomment for debugging. Will print the JSON incoming msg
+    mqtt_logger.debug("Publish msg ID: " + str(mid)) 
     pass 
 
 def on_disconnect(client, userdata,rc=0):
@@ -147,6 +143,7 @@ def mqtt_setup(IPaddress):
     MQTT_SERVER = IPaddress                    # Replace with IP address of device running mqtt server/broker
     MQTT_USER = user_info[0]                   # Replace with your mqtt user ID
     MQTT_PASSWORD = user_info[1]               # Replace with your mqtt password
+
     # Specific MQTT SUBSCRIBE/PUBLISH TOPICS created inside 'setup_device' function
     MQTT_SUB_TOPIC = []
     MQTT_SUB_LVL1 = 'nred2' + MQTT_CLIENT_ID
@@ -207,15 +204,9 @@ def main():
     #                 lvl3 = free form   (ie controls, servo IDs, etc)
     MQTT_CLIENT_ID = 'pi' # Can make ID unique if multiple Pi's could be running similar devices (ie servos, ADC's) 
                           # Node red will need to be linked to unique MQTT_CLIENT_ID
-    mqtt_setup('10.0.0.115') # Pass IP address
-
-    printcolor = True
-    deviceD = {}  # Primary container for storing all devices, topics, and data
-
-    MQTT_CLIENT_ID = 'pi' # Can make ID unique if multiple Pi's could be running similar devices (ie servos, ADC's) 
-                          # Node red will need to be linked to unique MQTT_CLIENT_ID
-    mqtt_setup('10.0.0.115')
+    mqtt_setup('10.0.0.115') # IP address
     
+    printcolor = True
     deviceD = {}  # Primary container for storing all devices, topics, and data
                   # Device name should be unique, can not duplicate device ID
                   # Topic lvl2 name can be a duplicate, meaning multipple devices publishing data on the same topic
