@@ -5,6 +5,7 @@ from os import path
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 import piina219
+from debugging import Timer
 
 class pcolor:
     ''' Add color to print statements '''
@@ -269,9 +270,12 @@ def main():
     # MQTT setup is successful. Initialize dictionaries and start the main loop.   
     t0_sec = perf_counter() # sec Counter for getting stepper data. Future feature - update interval in  node-red dashboard to link to perf_counter
     msginterval = 1       # Adjust interval to increase/decrease number of mqtt updates.
+    #t = Timer()
+    # can use t.start() and t.stop() for quick timing numbers.  ina219 read is taking >3ms
     try:
         while True:
             if (perf_counter() - t0_sec) > msginterval: # Get data on a time interval
+
                 for device, ina219 in ina219Set.items():
                     deviceD[device]['data'] = ina219.read()
                     mqtt_client.publish(deviceD[device]['pubtopic'], json.dumps(deviceD[device]['data']))  # publish voltage values
