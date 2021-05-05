@@ -56,22 +56,19 @@ from time import perf_counter, perf_counter_ns
 
 class PiINA219:
 
-    def __init__(self, voltkey='Vbusf', currentkey='IbusAf', powerkey='PowerWf', gainmode="auto", maxA = 0.4, address=0x40, mlogger=None, mlog_level=logging.INFO): 
+    def __init__(self, voltkey='Vbusf', currentkey='IbusAf', powerkey='PowerWf', gainmode="auto", maxA = 0.4, address=0x40, mlogger=None): 
         self.SHUNT_OHMS = 0.1
         self.voltkey = voltkey
         self.currentkey = currentkey
         self.powerkey = powerkey
         self.address = address
-        if mlogger is not None:     # Custom logger has priority
+        if mlogger is not None:                        # Use logger passed as argument
             self.logger = mlogger
-        elif len(logging.getLogger().handlers) == 0: # Root logger does not exist and no custom logger passed
-            logging.basicConfig(level=mlog_level)  # Create Root logger
-            self.logger = logging.getLogger(__name__)
-            self.logger.setLevel(mlog_level)
-        else:
-            self.logger = logging.getLogger(__name__)
-            self.logger.setLevel(mlog_level)
-            
+        elif len(logging.getLogger().handlers) == 0:   # Root logger does not exist and no custom logger passed
+            logging.basicConfig(level=logging.INFO)      # Create root logger
+            self.logger = logging.getLogger(__name__)    # Create from root logger
+        else:                                          # Root logger already exists and no custom logger passed
+            self.logger = logging.getLogger(__name__)    # Create from root logger        
         self.ina219 = INA219(self.SHUNT_OHMS, maxA, address=self.address)  # can pass log_level=log_level
         self.outgoing = {}
         if gainmode == "auto":      # AUTO GAIN, HIGH RESOLUTION - Lower precision above max amps specified
@@ -126,25 +123,25 @@ if __name__ == "__main__":
         console_handler.setLevel(logging.CRITICAL)
         console_handler.setFormatter(log_console_format)
 
-        exp_file_handler = RotatingFileHandler('{}/exp_debug.log'.format(log_dir), maxBytes=10**6, backupCount=5) # 1MB file
-        exp_file_handler.setLevel(logfile_log_level)
-        exp_file_handler.setFormatter(log_file_format)
+        log_file_handler = RotatingFileHandler('{}/debug.log'.format(log_dir), maxBytes=10**6, backupCount=5) # 1MB file
+        log_file_handler.setLevel(logfile_log_level)
+        log_file_handler.setFormatter(log_file_format)
 
-        exp_errors_file_handler = RotatingFileHandler('{}/exp_error.log'.format(log_dir), maxBytes=10**6, backupCount=5)
-        exp_errors_file_handler.setLevel(logging.WARNING)
-        exp_errors_file_handler.setFormatter(log_file_format)
+        log_errors_file_handler = RotatingFileHandler('{}/error.log'.format(log_dir), maxBytes=10**6, backupCount=5)
+        log_errors_file_handler.setLevel(logging.WARNING)
+        log_errors_file_handler.setFormatter(log_file_format)
 
         main_logger.addHandler(console_handler)
-        main_logger.addHandler(exp_file_handler)
-        main_logger.addHandler(exp_errors_file_handler)
+        main_logger.addHandler(log_file_handler)
+        main_logger.addHandler(log_errors_file_handler)
         return main_logger
     
     main_log_level= logging.DEBUG
     #logging.basicConfig(level=main_log_level) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
     main_logger = setup_logging(path.dirname(path.abspath(__file__)), main_log_level, 2)
     payload_keys = ['Vbusf', 'IbusAf', 'PowerWf']
-    ina219A = PiINA219(*payload_keys, "auto", 0.4, 0x40, mlogger=main_logger, mlog_level=main_log_level)
-    ina219B = PiINA219(*payload_keys, "auto", 0.4, 0x41, mlogger=main_logger, mlog_level=main_log_level)
+    ina219A = PiINA219(*payload_keys, "auto", 0.4, 0x40, mlogger=main_logger)
+    ina219B = PiINA219(*payload_keys, "auto", 0.4, 0x41, mlogger=main_logger)
     #while True:
     for i in range(5):
         t0 = perf_counter_ns()
