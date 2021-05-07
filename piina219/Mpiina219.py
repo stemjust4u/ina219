@@ -139,9 +139,9 @@ if __name__ == "__main__":
     main_log_level= logging.DEBUG
     #logging.basicConfig(level=main_log_level) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
     main_logger = setup_logging(path.dirname(path.abspath(__file__)), main_log_level, 2)
-    payload_keys = ['Vbusf', 'IbusAf', 'PowerWf']
-    ina219A = PiINA219(*payload_keys, "auto", 0.4, 0x40, mlogger=main_logger)
-    ina219B = PiINA219(*payload_keys, "auto", 0.4, 0x41, mlogger=main_logger)
+    data_keys = ['Vbusf', 'IbusAf', 'PowerWf']
+    ina219A = PiINA219(*data_keys, "auto", 0.4, 0x40, mlogger=main_logger)
+    ina219B = PiINA219(*data_keys, "auto", 0.4, 0x41, mlogger=main_logger)
     #while True:
     for i in range(5):
         t0 = perf_counter_ns()
