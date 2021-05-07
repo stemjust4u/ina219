@@ -78,7 +78,7 @@ class PiINA219:
         self.logger.info('ina219 at {0} setup with gain mode:{1} max Amps:{2}'.format(address, gainmode, maxA))
         self.logger.info(self.ina219)
 
-    def read(self):
+    def getdata(self):
         self.outgoing[self.voltkey] =  self.ina219.voltage()
         try:
             self.outgoing[self.currentkey] = float("{:.3f}".format(self.ina219.current()/1000))
@@ -145,14 +145,14 @@ if __name__ == "__main__":
     #while True:
     for i in range(5):
         t0 = perf_counter_ns()
-        reading = ina219A.read()
+        reading = ina219A.getdata()
         tdelta = perf_counter_ns() - t0
         #logging.info('{0} {1}'.format(reading.keys(), reading.values()))
         time.sleep(1)
     ina219A.sleep()
     for i in range(5):
         t0 = perf_counter_ns()
-        reading = ina219A.read()
+        reading = ina219A.getdata()
         tdelta = perf_counter_ns() - t0
         #logging.info('{0} {1}'.format(reading.keys(), reading.values()))
         time.sleep(1)
