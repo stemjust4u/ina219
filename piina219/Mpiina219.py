@@ -147,12 +147,10 @@ if __name__ == "__main__":
         t0 = perf_counter_ns()
         reading = ina219A.getdata()
         tdelta = perf_counter_ns() - t0
-        #logging.info('{0} {1}'.format(reading.keys(), reading.values()))
         time.sleep(1)
     ina219A.sleep()
     for i in range(5):
         t0 = perf_counter_ns()
         reading = ina219A.getdata()
         tdelta = perf_counter_ns() - t0
-        #logging.info('{0} {1}'.format(reading.keys(), reading.values()))
         time.sleep(1)

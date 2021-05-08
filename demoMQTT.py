@@ -5,7 +5,7 @@ from os import path
 from pathlib import Path
 from logging.handlers import RotatingFileHandler
 import piina219
-from debugging import Timer
+from mytools import Timer
 
 class pcolor:
     ''' Add color to print statements '''
