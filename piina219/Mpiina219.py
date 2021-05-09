@@ -56,14 +56,14 @@ from time import perf_counter, perf_counter_ns
 
 class PiINA219:
 
-    def __init__(self, voltkey='Vbusf', currentkey='IbusAf', powerkey='PowerWf', gainmode="auto", maxA = 0.4, address=0x40, mlogger=None): 
+    def __init__(self, voltkey='Vbusf', currentkey='IbusAf', powerkey='PowerWf', gainmode="auto", maxA = 0.4, address=0x40, logger=None): 
         self.SHUNT_OHMS = 0.1
         self.voltkey = voltkey
         self.currentkey = currentkey
         self.powerkey = powerkey
         self.address = address
-        if mlogger is not None:                        # Use logger passed as argument
-            self.logger = mlogger
+        if logger is not None:                        # Use logger passed as argument
+            self.logger = logger
         elif len(logging.getLogger().handlers) == 0:   # Root logger does not exist and no custom logger passed
             logging.basicConfig(level=logging.INFO)      # Create root logger
             self.logger = logging.getLogger(__name__)    # Create from root logger
@@ -140,8 +140,8 @@ if __name__ == "__main__":
     #logging.basicConfig(level=main_log_level) # Set to CRITICAL to turn logging off. Set to DEBUG to get variables. Set to INFO for status messages.
     main_logger = setup_logging(path.dirname(path.abspath(__file__)), main_log_level, 2)
     data_keys = ['Vbusf', 'IbusAf', 'PowerWf']
-    ina219A = PiINA219(*data_keys, "auto", 0.4, 0x40, mlogger=main_logger)
-    ina219B = PiINA219(*data_keys, "auto", 0.4, 0x41, mlogger=main_logger)
+    ina219A = PiINA219(*data_keys, "auto", 0.4, 0x40, logger=main_logger)
+    ina219B = PiINA219(*data_keys, "auto", 0.4, 0x41, logger=main_logger)
     #while True:
     for i in range(5):
         t0 = perf_counter_ns()

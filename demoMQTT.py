@@ -231,14 +231,14 @@ def main():
     publvl3 = MQTT_CLIENT_ID + "Test1" # Will be a tag in influxdb. Optional to modify it and describe experiment being ran
     data_keys = ['Vbusf', 'IbusAf', 'PowerWf']
     setup_device(device, lvl2, publvl3, data_keys)
-    ina219Set[device] = piina219.PiINA219(*data_keys, gainmode="auto", maxA=0.4, address=0x40, mlogger=ina219_logger)
+    ina219Set[device] = piina219.PiINA219(*data_keys, gainmode="auto", maxA=0.4, address=0x40, logger=ina219_logger)
 
     device = "ina219B"
     lvl2 = "ina219B"
     publvl3 = MQTT_CLIENT_ID + "Test2" # Will be a tag in influxdb. Optional to modify it and describe experiment being ran
     data_keys = ['Vbusf', 'IbusAf', 'PowerWf']
     setup_device(device, lvl2, publvl3, data_keys)
-    ina219Set[device] = piina219.PiINA219(*data_keys, gainmode="auto", maxA=0.4, address=0x41, mlogger=ina219_logger)
+    ina219Set[device] = piina219.PiINA219(*data_keys, gainmode="auto", maxA=0.4, address=0x41, logger=ina219_logger)
     
     print("\n")
     for logger in _loggers:
