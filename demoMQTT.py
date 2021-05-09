@@ -276,7 +276,7 @@ def main():
         while True:
             if (perf_counter() - t0_sec) > msginterval: # Get data on a time interval
                 for device, ina219 in ina219Set.items():
-                    deviceD[device]['data'] = ina219.read()
+                    deviceD[device]['data'] = ina219.getdata()
                     mqtt_client.publish(deviceD[device]['pubtopic'], json.dumps(deviceD[device]['data']))  # publish voltage values
                 t0_sec = perf_counter()
     except KeyboardInterrupt:
