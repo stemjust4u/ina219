@@ -1,11 +1,11 @@
 <link rel="stylesheet" href="./images/sj4u.css"></link>
 
-# [STEM Just 4 U Home Page](https://stemjust4u.com/)
-## This project collects voltage, current, and power from an ina219 power monitor
+## Outline  
+This project collects voltage, current, and power from an ina219 power monitor
+
+[Link to General Workflow with MQTT, NodeRed, Hardware, Coding Setup](https://stemjust4u.github.io/ref/data-analysis/workflow/)
 
 If you don't have an ina219, (0-3.3V) voltage can be collected using ADC on esp32 (or external ADC boards ADS115/MCP3008 on RPi) but current or higher voltages are not as easy to get to. The ina219 makes higher voltage and current/power collection easy. I did not see libraries for micropython so this project will only be with Raspberry Pi. I2C is used for communication to the RPi, requiring only 2 cables for that portion. Another advantage to the ina219 is that you can connect to the high side, between the power source and load, so you can measure both current and voltage.
-
-[Link to Project Web Site](https://github.com/stemjust4u/ina219)
 
 ## Materials 
 * Raspberry Pi
